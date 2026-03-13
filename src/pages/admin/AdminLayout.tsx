@@ -75,7 +75,7 @@ export default function AdminLayout() {
 
         <div className="mt-auto p-8 border-t border-white/5 flex flex-col gap-2">
           <button 
-            onClick={() => navigate('/')}
+            onClick={() => navigate(`/${profile?.empresa_slug || ''}`)}
             className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors w-full px-4 py-3"
           >
             <ChevronLeft className="w-5 h-5" />
@@ -136,7 +136,7 @@ export default function AdminLayout() {
                 );
               })}
               <button 
-                onClick={() => navigate('/')}
+                onClick={() => navigate(`/${profile?.empresa_slug || ''}`)}
                 className="flex items-center gap-4 px-6 py-4 text-gray-400 mt-8"
               >
                 <ChevronLeft className="w-6 h-6" />

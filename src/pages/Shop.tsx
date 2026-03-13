@@ -888,8 +888,8 @@ ${customerData.deliveryTime ? `\n*Horário:* ${customerData.deliveryTime}` : ''}
             <h2 className="text-3xl font-black text-text-main">Loja não encontrada</h2>
             <p className="text-text-main/60">O endereço que você tentou acessar não pertence a nenhuma loja ativa.</p>
           </div>
-          <Button onClick={() => navigate('/mimo')} variant="primary">
-            Ir para Loja Principal
+          <Button onClick={() => navigate('/login')} variant="primary">
+            Ir para Login
           </Button>
         </div>
       </div>

@@ -9,6 +9,7 @@ interface Profile {
   user_id: string;
   tipo_usuario: UserRole;
   empresa_id: string | null;
+  empresa_slug?: string | null;
 }
 
 interface AuthContextType {
@@ -72,7 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const supabase = getSupabase();
       const { data, error } = await supabase
         .from('perfis_usuario')
-        .select('*')
+        .select('*, empresas(slug)')
         .eq('user_id', userId)
         .maybeSingle();
 
@@ -83,8 +84,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.warn('AuthProvider: Perfil não encontrado para o usuário:', userId);
         setProfile(null);
       } else {
-        console.log("AuthProvider: Perfil carregado com sucesso:", data);
-        setProfile(data);
+        // Flatten the slug from the joined empresas table
+        const profileData = {
+          ...data,
+          empresa_slug: data.empresas?.slug || null
+        };
+        console.log("AuthProvider: Perfil carregado com sucesso:", profileData);
+        setProfile(profileData);
       }
     } catch (err) {
       console.error('AuthProvider: Erro inesperado ao buscar perfil:', err);

@@ -51,8 +51,8 @@ export default function App() {
           <Route path="/:slug" element={<Shop />} />
           
           {/* Fallback */}
-          <Route path="/" element={<Navigate to="/mimo" replace />} />
-          <Route path="*" element={<Navigate to="/mimo" replace />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
     </AuthProvider>
