@@ -1,0 +1,5 @@
+{
+  "name": "aqci_pedidos",
+  "description": "Aplicativo de pedidos para cestas de presentes e kits exclusivos.",
+  "requestFramePermissions": []
+}
