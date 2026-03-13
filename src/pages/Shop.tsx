@@ -329,10 +329,6 @@ export default function Shop() {
       // 1. Buscar ou Criar Cliente
       let cliente_id = null;
       
-      console.log("Buscando cliente existente");
-      console.log("telefone:", telefoneLimpo);
-      console.log("empresa_id:", empresa_id);
-
       const { data: existingCustomer, error: customerFetchError } = await supabase
         .from('clientes')
         .select('id')
@@ -346,30 +342,29 @@ export default function Shop() {
       }
 
       if (existingCustomer) {
-        console.log("Cliente encontrado:", existingCustomer);
         cliente_id = existingCustomer.id;
-        // Opcional: Atualizar nome se mudou
-        await supabase
-          .from('clientes')
-          .update({ nome: customerData.name })
-          .eq('id', cliente_id);
+        // Opcional: Atualizar dados se necessário
+        // Para evitar erros de RLS em updates, podemos apenas reutilizar o ID
       } else {
-        console.log("Criando novo cliente");
         payloadCliente = {
           nome: customerData.name,
           telefone: telefoneLimpo,
-          empresa_id
+          empresa_id,
+          endereco: customerData.address,
+          cidade: customerData.city
         };
 
-        const { data: newCustomer, error: customerCreateError } = await supabase
+        console.log("Payload cliente:", payloadCliente);
+
+        const { data: newCustomer, error: error } = await supabase
           .from('clientes')
           .insert(payloadCliente)
           .select()
           .single();
 
-        if (customerCreateError) {
-          console.error("Erro ao criar cliente:", customerCreateError);
-          throw customerCreateError;
+        if (error) {
+          console.error("Erro ao criar cliente:", error);
+          throw error;
         }
         cliente_id = newCustomer.id;
       }

@@ -40,8 +40,11 @@ export type OrderStatus = 'novo' | 'em_preparo' | 'saiu_para_entrega' | 'finaliz
 
 export interface Customer {
   id: string;
+  empresa_id: string;
   nome: string;
   telefone: string;
+  endereco?: string;
+  cidade?: string;
   created_at: string;
 }
 
