@@ -53,6 +53,8 @@ export default function Shop() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PIX');
   const [toast, setToast] = useState<string | null>(null);
   const [isFinalizing, setIsFinalizing] = useState(false);
+  const [isSearchingCustomer, setIsSearchingCustomer] = useState(false);
+  const [searchFeedback, setSearchFeedback] = useState<{ type: 'success' | 'info' | null, message: string | null }>({ type: null, message: null });
 
   // Helper to format phone number
   const formatPhone = (value: string) => {
@@ -60,6 +62,40 @@ export default function Shop() {
     if (numbers.length <= 2) return numbers;
     if (numbers.length <= 7) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
     return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
+  };
+
+  const searchCustomer = async (phone: string) => {
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length < 10) return;
+
+    try {
+      setIsSearchingCustomer(true);
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from('clientes')
+        .select('*')
+        .eq('telefone', cleanPhone)
+        .eq('empresa_id', storeConfig?.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setCustomerData(prev => ({
+          ...prev,
+          name: data.nome || prev.name,
+          address: data.endereco || prev.address,
+          city: data.cidade || prev.city,
+        }));
+        setSearchFeedback({ type: 'success', message: 'Dados encontrados para este telefone' });
+      } else {
+        setSearchFeedback({ type: 'info', message: 'Nenhum cadastro encontrado, preencha seus dados' });
+      }
+    } catch (err) {
+      console.error('Erro ao buscar cliente:', err);
+    } finally {
+      setIsSearchingCustomer(false);
+    }
   };
 
   // Derived State
@@ -111,6 +147,18 @@ export default function Shop() {
       supabase.removeChannel(categoriesChannel);
     };
   }, [slug, storeConfig?.id]);
+
+  useEffect(() => {
+    const cleanPhone = customerData.phone.replace(/\D/g, '');
+    if (cleanPhone.length >= 10) {
+      const timer = setTimeout(() => {
+        searchCustomer(customerData.phone);
+      }, 600);
+      return () => clearTimeout(timer);
+    } else {
+      setSearchFeedback({ type: null, message: null });
+    }
+  }, [customerData.phone, storeConfig?.id]);
 
   const loadShopData = async () => {
     try {
@@ -414,11 +462,6 @@ ${customerData.deliveryTime ? `\n*Horário:* ${customerData.deliveryTime}` : ''}
         return (
           <div className="p-4 flex flex-col gap-8 pb-24">
             <div className="flex flex-col gap-6">
-              <div className="flex flex-col gap-2">
-                <h2 className="text-3xl font-black text-text-main tracking-tight">Coleção Exclusiva</h2>
-                <p className="text-text-main/60 text-sm md:text-base">Presentes selecionados com carinho para momentos especiais.</p>
-              </div>
-
               {/* Category Filter */}
               {!loading && products.length > 0 && (
                 <div className="flex overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide gap-3 md:gap-4 md:overflow-visible md:flex-wrap">
@@ -683,6 +726,31 @@ ${customerData.deliveryTime ? `\n*Horário:* ${customerData.deliveryTime}` : ''}
             
             <form onSubmit={handleCheckoutSubmit} className="flex flex-col gap-5">
               <div className="bg-[#FFF0F5] p-6 rounded-2xl border border-black/5 shadow-sm flex flex-col gap-5">
+                <div className="flex flex-col gap-2">
+                  <InputField 
+                    label="Telefone / WhatsApp *" 
+                    placeholder="(99) 99999-9999"
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={15}
+                    value={customerData.phone}
+                    onChange={e => setCustomerData({...customerData, phone: formatPhone(e.target.value)})}
+                    required
+                  />
+                  {searchFeedback.message && (
+                    <div className={`text-xs font-bold px-3 py-1 rounded-lg flex items-center gap-2 ${
+                      searchFeedback.type === 'success' ? 'text-green-600 bg-green-50' : 'text-blue-600 bg-blue-50'
+                    }`}>
+                      {isSearchingCustomer ? (
+                        <div className="w-3 h-3 border-2 border-current/20 border-t-current rounded-full animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="w-3 h-3" />
+                      )}
+                      {searchFeedback.message}
+                    </div>
+                  )}
+                </div>
+
                 <InputField 
                   label="Nome Completo *" 
                   placeholder="Ex: Maria Silva"
@@ -690,16 +758,7 @@ ${customerData.deliveryTime ? `\n*Horário:* ${customerData.deliveryTime}` : ''}
                   onChange={e => setCustomerData({...customerData, name: e.target.value})}
                   required
                 />
-                <InputField 
-                  label="Telefone / WhatsApp *" 
-                  placeholder="(99) 99999-9999"
-                  type="tel"
-                  inputMode="numeric"
-                  maxLength={15}
-                  value={customerData.phone}
-                  onChange={e => setCustomerData({...customerData, phone: formatPhone(e.target.value)})}
-                  required
-                />
+                
                 <InputField 
                   label="Endereço de Entrega *" 
                   placeholder="Rua, número, bairro"
