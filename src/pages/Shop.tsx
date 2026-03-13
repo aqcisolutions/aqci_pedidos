@@ -16,7 +16,8 @@ import {
   Banknote,
   Plus,
   Minus,
-  ShoppingCart
+  ShoppingCart,
+  User
 } from 'lucide-react';
 import { Product, CartItem as CartItemType, CustomerData, PaymentMethod, Screen, Category, StoreConfig } from '../types';
 import { PIX_KEY } from '../constants';
@@ -55,6 +56,9 @@ export default function Shop() {
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [isSearchingCustomer, setIsSearchingCustomer] = useState(false);
   const [searchFeedback, setSearchFeedback] = useState<{ type: 'success' | 'info' | null, message: string | null }>({ type: null, message: null });
+  const [showFullForm, setShowFullForm] = useState(false);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [tempFoundCustomer, setTempFoundCustomer] = useState<any | null>(null);
 
   // Helper to format phone number
   const formatPhone = (value: string) => {
@@ -81,14 +85,11 @@ export default function Shop() {
       if (error) throw error;
 
       if (data) {
-        setCustomerData(prev => ({
-          ...prev,
-          name: data.nome || prev.name,
-          address: data.endereco || prev.address,
-          city: data.cidade || prev.city,
-        }));
+        setTempFoundCustomer(data);
+        setShowCustomerModal(true);
         setSearchFeedback({ type: 'success', message: 'Dados encontrados para este telefone' });
       } else {
+        setShowFullForm(true);
         setSearchFeedback({ type: 'info', message: 'Nenhum cadastro encontrado, preencha seus dados' });
       }
     } catch (err) {
@@ -96,6 +97,19 @@ export default function Shop() {
     } finally {
       setIsSearchingCustomer(false);
     }
+  };
+
+  const handleUseFoundData = (use: boolean) => {
+    if (use && tempFoundCustomer) {
+      setCustomerData(prev => ({
+        ...prev,
+        name: tempFoundCustomer.nome || prev.name,
+        address: tempFoundCustomer.endereco || prev.address,
+        city: tempFoundCustomer.cidade || prev.city,
+      }));
+    }
+    setShowCustomerModal(false);
+    setShowFullForm(true);
   };
 
   // Derived State
@@ -156,6 +170,7 @@ export default function Shop() {
       }, 600);
       return () => clearTimeout(timer);
     } else {
+      setShowFullForm(false);
       setSearchFeedback({ type: null, message: null });
     }
   }, [customerData.phone, storeConfig?.id]);
@@ -274,7 +289,11 @@ export default function Shop() {
   const navigateBack = () => {
     if (currentScreen === 'DETAILS') setCurrentScreen('HOME');
     else if (currentScreen === 'CART') setCurrentScreen('HOME');
-    else if (currentScreen === 'CHECKOUT') setCurrentScreen('CART');
+    else if (currentScreen === 'CHECKOUT') {
+      setCurrentScreen('CART');
+      setShowFullForm(false);
+      setSearchFeedback({ type: null, message: null });
+    }
     else if (currentScreen === 'PAYMENT') setCurrentScreen('CHECKOUT');
     window.scrollTo(0, 0);
   };
@@ -431,6 +450,8 @@ ${customerData.deliveryTime ? `\n*Horário:* ${customerData.deliveryTime}` : ''}
       // 5. Sucesso
       setCurrentScreen('CONFIRMATION');
       setCart([]);
+      setShowFullForm(false);
+      setSearchFeedback({ type: null, message: null });
       setCustomerData({
         name: '',
         phone: '',
@@ -741,7 +762,10 @@ ${customerData.deliveryTime ? `\n*Horário:* ${customerData.deliveryTime}` : ''}
                     inputMode="numeric"
                     maxLength={15}
                     value={customerData.phone}
-                    onChange={e => setCustomerData({...customerData, phone: formatPhone(e.target.value)})}
+                    onChange={e => {
+                      const formatted = formatPhone(e.target.value);
+                      setCustomerData({...customerData, phone: formatted});
+                    }}
                     required
                   />
                   {searchFeedback.message && (
@@ -758,66 +782,126 @@ ${customerData.deliveryTime ? `\n*Horário:* ${customerData.deliveryTime}` : ''}
                   )}
                 </div>
 
-                <InputField 
-                  label="Nome Completo *" 
-                  placeholder="Ex: Maria Silva"
-                  value={customerData.name}
-                  onChange={e => setCustomerData({...customerData, name: e.target.value})}
-                  required
-                />
-                
-                <InputField 
-                  label="Endereço de Entrega *" 
-                  placeholder="Rua, número, bairro"
-                  value={customerData.address}
-                  onChange={e => setCustomerData({...customerData, address: e.target.value})}
-                  required
-                />
-                <InputField 
-                  label="Cidade *" 
-                  placeholder="Ex: São Paulo"
-                  value={customerData.city}
-                  onChange={e => setCustomerData({...customerData, city: e.target.value})}
-                  required
-                />
+                {showFullForm && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="flex flex-col gap-5"
+                  >
+                    <InputField 
+                      label="Nome Completo *" 
+                      placeholder="Ex: Maria Silva"
+                      value={customerData.name}
+                      onChange={e => setCustomerData({...customerData, name: e.target.value})}
+                      required
+                    />
+                    
+                    <InputField 
+                      label="Endereço de Entrega *" 
+                      placeholder="Rua, número, bairro"
+                      value={customerData.address}
+                      onChange={e => setCustomerData({...customerData, address: e.target.value})}
+                      required
+                    />
+                    <InputField 
+                      label="Cidade *" 
+                      placeholder="Ex: São Paulo"
+                      value={customerData.city}
+                      onChange={e => setCustomerData({...customerData, city: e.target.value})}
+                      required
+                    />
+                  </motion.div>
+                )}
               </div>
               
-              <div className="bg-[#FFF0F5] p-6 rounded-2xl border border-black/5 shadow-sm flex flex-col gap-5">
-                <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">Opcionais</h3>
-                <InputField 
-                  label="Mensagem para o Cartão" 
-                  placeholder="Escreva uma mensagem carinhosa..."
-                  isTextArea
-                  value={customerData.cardMessage}
-                  onChange={e => setCustomerData({...customerData, cardMessage: e.target.value})}
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <InputField 
-                    label="Data de Entrega" 
-                    type="date"
-                    value={customerData.deliveryDate}
-                    onChange={e => setCustomerData({...customerData, deliveryDate: e.target.value})}
-                  />
-                  <InputField 
-                    label="Horário" 
-                    type="time"
-                    value={customerData.deliveryTime}
-                    onChange={e => setCustomerData({...customerData, deliveryTime: e.target.value})}
-                  />
-                </div>
-                <InputField 
-                  label="Observações" 
-                  placeholder="Algum detalhe sobre a entrega?"
-                  value={customerData.observation}
-                  onChange={e => setCustomerData({...customerData, observation: e.target.value})}
-                />
-              </div>
-              
-              <Button type="submit" fullWidth>
-                Continuar para Pagamento
-                <ArrowRight className="w-5 h-5" />
-              </Button>
+              {showFullForm && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex flex-col gap-5"
+                >
+                  <div className="bg-[#FFF0F5] p-6 rounded-2xl border border-black/5 shadow-sm flex flex-col gap-5">
+                    <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">Opcionais</h3>
+                    <InputField 
+                      label="Mensagem para o Cartão" 
+                      placeholder="Escreva uma mensagem carinhosa..."
+                      isTextArea
+                      value={customerData.cardMessage}
+                      onChange={e => setCustomerData({...customerData, cardMessage: e.target.value})}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <InputField 
+                        label="Data de Entrega" 
+                        type="date"
+                        value={customerData.deliveryDate}
+                        onChange={e => setCustomerData({...customerData, deliveryDate: e.target.value})}
+                      />
+                      <InputField 
+                        label="Horário" 
+                        type="time"
+                        value={customerData.deliveryTime}
+                        onChange={e => setCustomerData({...customerData, deliveryTime: e.target.value})}
+                      />
+                    </div>
+                    <InputField 
+                      label="Observações" 
+                      placeholder="Algum detalhe sobre a entrega?"
+                      value={customerData.observation}
+                      onChange={e => setCustomerData({...customerData, observation: e.target.value})}
+                    />
+                  </div>
+                  
+                  <Button type="submit" fullWidth>
+                    Continuar para Pagamento
+                    <ArrowRight className="w-5 h-5" />
+                  </Button>
+                </motion.div>
+              )}
             </form>
+
+            {/* Customer Confirmation Modal */}
+            <AnimatePresence>
+              {showCustomerModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                    className="bg-white rounded-[2.5rem] p-8 w-full max-w-md shadow-2xl flex flex-col gap-6"
+                  >
+                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+                      <User className="w-8 h-8 text-primary" />
+                    </div>
+                    <div className="text-center flex flex-col gap-2">
+                      <h3 className="text-2xl font-black text-gray-900">Cadastro Encontrado!</h3>
+                      <p className="text-gray-500 font-medium">
+                        Encontramos seus dados cadastrados. Deseja usar ou atualizar essas informações?
+                      </p>
+                    </div>
+                    
+                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex flex-col gap-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400 font-bold uppercase text-[10px]">Nome</span>
+                        <span className="font-bold text-gray-900">{tempFoundCustomer?.nome}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400 font-bold uppercase text-[10px]">Endereço</span>
+                        <span className="font-bold text-gray-900 text-right">{tempFoundCustomer?.endereco}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                      <Button onClick={() => handleUseFoundData(true)} fullWidth>
+                        Sim, usar meus dados
+                      </Button>
+                      <Button onClick={() => handleUseFoundData(false)} variant="ghost" fullWidth>
+                        Não, preencher novo
+                      </Button>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
           </div>
         );
 
