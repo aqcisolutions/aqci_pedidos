@@ -112,6 +112,7 @@ export default function Orders() {
   const fetchOrderItems = async (orderId: string) => {
     try {
       setLoadingItems(true);
+      console.log("Buscando itens do pedido:", orderId);
       const supabase = getSupabase();
       
       const { data, error } = await supabase
@@ -120,6 +121,7 @@ export default function Orders() {
         .eq('pedido_id', orderId);
 
       if (error) throw error;
+      console.log("Itens encontrados:", data);
       setOrderItems(data || []);
     } catch (err) {
       console.error('Error fetching order items:', err);
@@ -488,6 +490,10 @@ export default function Orders() {
                         {loadingItems ? (
                           <div className="py-4 flex justify-center">
                             <div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+                          </div>
+                        ) : orderItems.length === 0 ? (
+                          <div className="py-4 text-center">
+                            <p className="text-sm text-gray-500 font-medium">Nenhum item encontrado para este pedido</p>
                           </div>
                         ) : (
                           <div className="flex flex-col gap-3">

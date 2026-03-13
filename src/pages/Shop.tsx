@@ -372,6 +372,8 @@ export default function Shop() {
         horario_entrega: customerData.deliveryTime || null
       };
 
+      console.log("Payload Pedido:", payloadPedido);
+
       const { data: pedidoData, error: pedidoError } = await supabase
         .from('pedidos')
         .insert(payloadPedido)
@@ -392,11 +394,16 @@ export default function Shop() {
         subtotal: item.product.preco * item.quantity
       }));
 
+      console.log("Payload Itens:", payloadItens);
+
       const { error: itensError } = await supabase
         .from('pedido_itens')
         .insert(payloadItens);
 
-      if (itensError) throw itensError;
+      if (itensError) {
+        console.error("Erro ao salvar pedido_itens:", itensError);
+        throw itensError;
+      }
 
       // 4. Abrir WhatsApp
       const orderSummary = cart.map(item => 
