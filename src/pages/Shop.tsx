@@ -54,6 +54,14 @@ export default function Shop() {
   const [toast, setToast] = useState<string | null>(null);
   const [isFinalizing, setIsFinalizing] = useState(false);
 
+  // Helper to format phone number
+  const formatPhone = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    if (numbers.length <= 2) return numbers;
+    if (numbers.length <= 7) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
+  };
+
   // Derived State
   const cartCount = useMemo(() => cart.reduce((acc, item) => acc + item.quantity, 0), [cart]);
   const cartTotal = useMemo(() => cart.reduce((acc, item) => acc + (item.product.preco * item.quantity), 0), [cart]);
@@ -249,29 +257,40 @@ export default function Shop() {
       }
       
       const empresa_id = storeConfig.id;
+      const telefoneLimpo = customerData.phone.replace(/\D/g, '');
       
       // 1. Buscar ou Criar Cliente
       let cliente_id = null;
       
+      console.log("Buscando cliente existente");
+      console.log("telefone:", telefoneLimpo);
+      console.log("empresa_id:", empresa_id);
+
       const { data: existingCustomer, error: customerFetchError } = await supabase
         .from('clientes')
         .select('id')
-        .eq('telefone', customerData.phone)
+        .eq('telefone', telefoneLimpo)
         .eq('empresa_id', empresa_id)
         .maybeSingle();
 
-      if (customerFetchError) throw customerFetchError;
+      if (customerFetchError) {
+        console.error("Erro ao buscar cliente:", customerFetchError);
+        throw customerFetchError;
+      }
 
       if (existingCustomer) {
+        console.log("Cliente encontrado:", existingCustomer);
         cliente_id = existingCustomer.id;
+        // Opcional: Atualizar nome se mudou
         await supabase
           .from('clientes')
           .update({ nome: customerData.name })
           .eq('id', cliente_id);
       } else {
+        console.log("Criando novo cliente");
         payloadCliente = {
           nome: customerData.name,
-          telefone: customerData.phone,
+          telefone: telefoneLimpo,
           empresa_id
         };
 
@@ -281,7 +300,10 @@ export default function Shop() {
           .select()
           .single();
 
-        if (customerCreateError) throw customerCreateError;
+        if (customerCreateError) {
+          console.error("Erro ao criar cliente:", customerCreateError);
+          throw customerCreateError;
+        }
         cliente_id = newCustomer.id;
       }
 
@@ -290,7 +312,7 @@ export default function Shop() {
         empresa_id,
         cliente_id,
         cliente_nome: customerData.name,
-        cliente_telefone: customerData.phone,
+        cliente_telefone: telefoneLimpo,
         endereco: customerData.address,
         cidade: customerData.city,
         forma_pagamento: paymentMethod,
@@ -670,10 +692,12 @@ ${customerData.deliveryTime ? `\n*Horário:* ${customerData.deliveryTime}` : ''}
                 />
                 <InputField 
                   label="Telefone / WhatsApp *" 
-                  placeholder="(00) 00000-0000"
+                  placeholder="(99) 99999-9999"
                   type="tel"
+                  inputMode="numeric"
+                  maxLength={15}
                   value={customerData.phone}
-                  onChange={e => setCustomerData({...customerData, phone: e.target.value})}
+                  onChange={e => setCustomerData({...customerData, phone: formatPhone(e.target.value)})}
                   required
                 />
                 <InputField 
