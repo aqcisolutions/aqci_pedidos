@@ -236,19 +236,21 @@ export default function Shop() {
   const handleFinalizeOrder = async () => {
     if (isFinalizing) return;
     
+    let payloadCliente: any = null;
+    let payloadPedido: any = null;
+    let payloadItens: any = null;
+    
     try {
       setIsFinalizing(true);
       const supabase = getSupabase();
       
       if (!storeConfig?.id) {
-        setToast('Erro: Configuração da loja não carregada.');
-        return;
+        throw new Error('Configuração da loja não carregada (empresa_id ausente).');
       }
       
       const empresa_id = storeConfig.id;
-      console.log("Empresa atual da loja:", storeConfig);
       
-      // 1. Verificar/Criar Cliente
+      // 1. Buscar ou Criar Cliente
       let cliente_id = null;
       
       const { data: existingCustomer, error: customerFetchError } = await supabase
@@ -262,18 +264,16 @@ export default function Shop() {
 
       if (existingCustomer) {
         cliente_id = existingCustomer.id;
-        // Opcional: Atualizar nome se mudou
         await supabase
           .from('clientes')
           .update({ nome: customerData.name })
           .eq('id', cliente_id);
       } else {
-        const payloadCliente = {
+        payloadCliente = {
           nome: customerData.name,
           telefone: customerData.phone,
           empresa_id
         };
-        console.log("Payload cliente:", payloadCliente);
 
         const { data: newCustomer, error: customerCreateError } = await supabase
           .from('clientes')
@@ -286,7 +286,7 @@ export default function Shop() {
       }
 
       // 2. Inserir pedido
-      const payloadPedido = {
+      payloadPedido = {
         empresa_id,
         cliente_id,
         cliente_nome: customerData.name,
@@ -301,7 +301,6 @@ export default function Shop() {
         data_entrega: customerData.deliveryDate || null,
         horario_entrega: customerData.deliveryTime || null
       };
-      console.log("Payload pedido:", payloadPedido);
 
       const { data: pedidoData, error: pedidoError } = await supabase
         .from('pedidos')
@@ -314,7 +313,7 @@ export default function Shop() {
       const pedidoId = pedidoData.id;
 
       // 3. Inserir itens do pedido
-      const itensParaInserir = cart.map(item => ({
+      payloadItens = cart.map(item => ({
         pedido_id: pedidoId,
         produto_id: item.product.id,
         nome_produto: item.product.nome,
@@ -325,11 +324,11 @@ export default function Shop() {
 
       const { error: itensError } = await supabase
         .from('pedido_itens')
-        .insert(itensParaInserir);
+        .insert(payloadItens);
 
       if (itensError) throw itensError;
 
-      // 3. Abrir WhatsApp
+      // 4. Abrir WhatsApp
       const orderSummary = cart.map(item => 
         `${item.quantity}x ${item.product.nome} - R$ ${(item.product.preco * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
       ).join('\n');
@@ -352,7 +351,7 @@ ${customerData.deliveryTime ? `\n*Horário:* ${customerData.deliveryTime}` : ''}
 
       openWhatsApp(message);
 
-      // 4. Sucesso
+      // 5. Sucesso
       setCurrentScreen('CONFIRMATION');
       setCart([]);
       setCustomerData({
@@ -366,8 +365,14 @@ ${customerData.deliveryTime ? `\n*Horário:* ${customerData.deliveryTime}` : ''}
         deliveryTime: '',
       });
       window.scrollTo(0, 0);
-    } catch (err) {
-      console.error('Erro ao finalizar pedido:', err);
+    } catch (err: any) {
+      console.group('Erro ao finalizar pedido');
+      console.error('Erro Supabase:', err);
+      console.log('Payload Cliente:', payloadCliente);
+      console.log('Payload Pedido:', payloadPedido);
+      console.log('Payload Itens:', payloadItens);
+      console.groupEnd();
+      
       setToast('Não foi possível finalizar o pedido. Tente novamente.');
     } finally {
       setIsFinalizing(false);
